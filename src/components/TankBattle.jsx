@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, forwardRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
+import nipplejs from 'nipplejs'; // <-- ДОБАВЛЕНО
 
 // ================ КОМПОНЕНТ КАМЕРЫ ================
 const WorldOfTanksCamera = ({ targetRef, turretRef, onZoomChange }) => {
@@ -209,8 +210,109 @@ const Turret = forwardRef(({ hullRef }, ref) => {
   );
 });
 
+// ================ КОМПОНЕНТ ДЖОЙСТИКА ДЛЯ ТЕЛЕФОНА ================ // <-- ДОБАВЛЕНО
+const Joystick = ({ onMove, onShoot }) => {
+  const joystickRef = useRef(null);
+  const zoneRef = useRef(null);
+  
+  useEffect(() => {
+    if (!zoneRef.current) return;
+    
+    const manager = nipplejs.create({
+      zone: zoneRef.current,
+      mode: 'static',
+      position: { left: '50%', top: '50%' },
+      color: 'blue',
+      size: 120,
+      restOpacity: 0.5,
+    });
+    
+    manager.on('move', (evt, nipple) => {
+      const angle = nipple.angle?.radian || 0;
+      const force = Math.min(nipple.force || 0, 1);
+      
+      if (onMove) {
+        onMove({
+          forward: Math.cos(angle) * force,
+          right: Math.sin(angle) * force,
+          angle,
+          force
+        });
+      }
+    });
+    
+    manager.on('end', () => {
+      if (onMove) {
+        onMove({ forward: 0, right: 0, force: 0 });
+      }
+    });
+    
+    return () => {
+      manager.destroy();
+    };
+  }, [onMove]);
+  
+  // Определяем, телефон ли это
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  if (!isMobile) return null;
+  
+  return (
+    <>
+      {/* Зона джойстика */}
+      <div
+        ref={zoneRef}
+        style={{
+          position: 'fixed',
+          bottom: '30px',
+          left: '30px',
+          width: '150px',
+          height: '150px',
+          zIndex: 2000,
+          touchAction: 'none',
+        }}
+      />
+      
+      {/* Кнопка стрельбы */}
+      <button
+        onTouchStart={(e) => {
+          e.preventDefault();
+          onShoot?.();
+        }}
+        style={{
+          position: 'fixed',
+          bottom: '30px',
+          right: '30px',
+          width: '80px',
+          height: '80px',
+          borderRadius: '50%',
+          backgroundColor: '#f44336',
+          color: 'white',
+          border: '3px solid white',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          zIndex: 2000,
+          touchAction: 'none',
+          boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+        }}
+      >
+        🔫
+      </button>
+    </>
+  );
+};
+
 // ================ ТАНК ИГРОКА ================
-const PlayerTank = forwardRef(({ position, tankStats, onShoot, onPositionChange, isAlive, turretRef }, ref) => {
+const PlayerTank = forwardRef(({ position, tankStats, onShoot, onPositionChange, isAlive, turretRef, joystickInput }, ref) => { // <-- ДОБАВЛЕН joystickInput
   const hullRef = useRef();
   const [aimRadius, setAimRadius] = useState(0.2);
   const [lastShotTime, setLastShotTime] = useState(0);
@@ -227,6 +329,14 @@ const PlayerTank = forwardRef(({ position, tankStats, onShoot, onPositionChange,
     }
   }, [ref]);
   
+  // Храним актуальный угол башни
+  const currentTurretAngle = useRef(0);
+  useFrame(() => {
+    if (turretRef?.current) {
+      currentTurretAngle.current = turretRef.current.rotation.y;
+    }
+  });
+  
   // Движение корпуса
   useFrame((state, delta) => {
     if (!isAlive || !hullRef.current) return;
@@ -236,6 +346,7 @@ const PlayerTank = forwardRef(({ position, tankStats, onShoot, onPositionChange,
     
     let moving = false;
     
+    // КЛАВИАТУРА (для ПК)
     if (window.keysPressed?.w) {
       hullRef.current.position.x -= Math.sin(hullRef.current.rotation.y) * moveSpeed;
       hullRef.current.position.z -= Math.cos(hullRef.current.rotation.y) * moveSpeed;
@@ -255,6 +366,18 @@ const PlayerTank = forwardRef(({ position, tankStats, onShoot, onPositionChange,
       moving = true;
     }
     
+    // ДЖОЙСТИК (для телефона) // <-- ДОБАВЛЕНО
+    if (joystickInput?.force > 0.1) {
+      const moveX = Math.sin(joystickInput.angle) * joystickInput.force * moveSpeed * 2;
+      const moveZ = Math.cos(joystickInput.angle) * joystickInput.force * moveSpeed * 2;
+      
+      // Движение относительно направления танка
+      hullRef.current.position.x += moveX * Math.cos(hullRef.current.rotation.y) + moveZ * Math.sin(hullRef.current.rotation.y);
+      hullRef.current.position.z += moveZ * Math.cos(hullRef.current.rotation.y) - moveX * Math.sin(hullRef.current.rotation.y);
+      
+      moving = true;
+    }
+    
     onPositionChange({
       x: hullRef.current.position.x,
       y: hullRef.current.position.y,
@@ -269,14 +392,6 @@ const PlayerTank = forwardRef(({ position, tankStats, onShoot, onPositionChange,
       if (timePassed >= 2) {
         setCanShoot(true);
       }
-    }
-  });
-  
-  // Храним актуальный угол башни
-  const currentTurretAngle = useRef(0);
-  useFrame(() => {
-    if (turretRef?.current) {
-      currentTurretAngle.current = turretRef.current.rotation.y;
     }
   });
   
@@ -306,6 +421,13 @@ const PlayerTank = forwardRef(({ position, tankStats, onShoot, onPositionChange,
       damage: tankStats.damage
     });
   };
+  
+  // Добавляем метод shoot на ref для вызова извне // <-- ДОБАВЛЕНО
+  useEffect(() => {
+    if (hullRef.current) {
+      hullRef.current.shoot = shoot;
+    }
+  }, [canShoot, isAlive]);
   
   useEffect(() => {
     const handleMouseDown = (e) => {
@@ -371,9 +493,10 @@ const PlayerTank = forwardRef(({ position, tankStats, onShoot, onPositionChange,
         <meshStandardMaterial color="#5a5a5a" />
       </mesh>
       
-      {/* Башня с внешним ref */}
+      {/* Башня */}
       <Turret ref={turretRef} hullRef={hullRef} />
       
+      {/* Круг разброса */}
       <Html position={[0, 2.5, 0]}>
         <div style={{
           position: 'relative',
@@ -402,6 +525,7 @@ const PlayerTank = forwardRef(({ position, tankStats, onShoot, onPositionChange,
         </div>
       </Html>
       
+      {/* Полоска здоровья */}
       <Html position={[0, 3.2, 0]}>
         <div style={{
           width: '120px',
@@ -704,9 +828,10 @@ const TankBattle = ({ playerTank, onBattleEnd, onExit }) => {
   const [effects, setEffects] = useState([]);
   const [exitTimer, setExitTimer] = useState(3);
   const [cameraInfo, setCameraInfo] = useState({ distance: 12, isSniping: false });
+  const [joystickInput, setJoystickInput] = useState({ forward: 0, right: 0, force: 0 }); // <-- ДОБАВЛЕНО
   
   const playerRef = useRef();
-  const turretRef = useRef();   // <-- СОЗДАЁМ REF ДЛЯ БАШНИ
+  const turretRef = useRef();
   const botRef = useRef();
   
   const handlePlayerShoot = (shotData) => {
@@ -830,7 +955,8 @@ const TankBattle = ({ playerTank, onBattleEnd, onExit }) => {
         
         <PlayerTank
           ref={playerRef}
-          turretRef={turretRef}           // <-- ПЕРЕДАЁМ В ТАНК
+          turretRef={turretRef}
+          joystickInput={joystickInput} // <-- ДОБАВЛЕНО
           position={[0, 0, 10]}
           tankStats={{...playerTank, hp: playerHealth}}
           onShoot={handlePlayerShoot}
@@ -858,13 +984,22 @@ const TankBattle = ({ playerTank, onBattleEnd, onExit }) => {
           />
         ))}
         
-        {/* Камера с правильным turretRef */}
         <WorldOfTanksCamera 
           targetRef={playerRef}
-          turretRef={turretRef}           // <-- ПЕРЕДАЁМ В КАМЕРУ
+          turretRef={turretRef}
           onZoomChange={setCameraInfo}
         />
       </Canvas>
+      
+      {/* ДЖОЙСТИК ДЛЯ ТЕЛЕФОНА */} {/* <-- ДОБАВЛЕНО */}
+      <Joystick 
+        onMove={setJoystickInput}
+        onShoot={() => {
+          if (playerRef.current && playerRef.current.shoot) {
+            playerRef.current.shoot();
+          }
+        }}
+      />
       
       <div style={{
         position: 'absolute',
@@ -919,10 +1054,11 @@ const TankBattle = ({ playerTank, onBattleEnd, onExit }) => {
         </div>
         
         <div style={{ marginTop: '10px', fontSize: '12px', color: '#aaa' }}>
-          W/A/S/D - движение корпуса<br/>
+          W/A/S/D - движение корпуса (ПК)<br/>
+          Джойстик - движение (телефон)<br/>
           Зажми ЛКМ или ПКМ + мышь - вращение камеры<br/>
-          ПКМ - свободный обзор (башня не поворачивается)<br/>
-          ЛКМ/Пробел - выстрел<br/>
+          ПКМ - свободный обзор<br/>
+          ЛКМ/Пробел/Красная кнопка - выстрел<br/>
           Колесико - зум {cameraInfo.isSniping ? '(Снайпер)' : ''}
         </div>
       </div>

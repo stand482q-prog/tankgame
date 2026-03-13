@@ -211,7 +211,7 @@ const Garage = ({
         </div>
       </div>
       
-      {/* Магазин сундуков с ценами */}
+      {/* Магазин сундуков */}
       <div style={styles.chestShop}>
         <h2>Сундуки</h2>
         <div style={styles.chests}>
@@ -301,6 +301,7 @@ const Garage = ({
   );
 };
 
+// ИСПРАВЛЕННЫЕ СТИЛИ ДЛЯ ТЕЛЕФОНА
 const styles = {
   garage: {
     padding: '20px',
@@ -308,7 +309,8 @@ const styles = {
     margin: '0 auto',
     backgroundColor: '#1a1a1a',
     minHeight: '100vh',
-    color: 'white'
+    color: 'white',
+    WebkitOverflowScrolling: 'touch', // плавный скролл на iOS
   },
   header: {
     backgroundColor: '#2a2a2a',
@@ -333,28 +335,34 @@ const styles = {
     color: 'white',
     border: 'none',
     borderRadius: '5px',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    minHeight: '44px', // для касания на телефоне
+    minWidth: '44px',
   },
   promoInput: {
     marginTop: '10px',
     display: 'flex',
-    gap: '10px'
+    gap: '10px',
+    flexWrap: 'wrap'
   },
   input: {
-    padding: '8px',
+    padding: '12px',
     flex: 1,
     borderRadius: '5px',
     border: '1px solid #4a4a4a',
     backgroundColor: '#333',
-    color: 'white'
+    color: 'white',
+    fontSize: '16px', // чтобы не масштабировалось на телефоне
   },
   button: {
-    padding: '8px 16px',
+    padding: '12px 20px',
     backgroundColor: '#4CAF50',
     color: 'white',
     border: 'none',
     borderRadius: '5px',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontSize: '16px',
+    minHeight: '44px',
   },
   chestShop: {
     backgroundColor: '#2a2a2a',
@@ -376,9 +384,7 @@ const styles = {
     textAlign: 'center',
     cursor: 'pointer',
     transition: 'transform 0.2s',
-    ':hover': {
-      transform: 'scale(1.05)'
-    }
+    minHeight: '44px',
   },
   chestIcon: {
     fontSize: '48px',
@@ -393,15 +399,28 @@ const styles = {
   tanksList: {
     backgroundColor: '#2a2a2a',
     padding: '20px',
-    borderRadius: '10px'
+    borderRadius: '10px',
+    marginBottom: '80px', // место для кнопки
   },
   tanksGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
     gap: '20px',
-    maxHeight: '500px',
+    maxHeight: '60vh', // высота для скролла
     overflowY: 'auto',
-    padding: '10px'
+    padding: '10px',
+    // ВАЖНО ДЛЯ ТЕЛЕФОНА:
+    WebkitOverflowScrolling: 'touch',
+    scrollbarWidth: 'thin',
+    msOverflowStyle: 'auto',
+    '&::-webkit-scrollbar': {
+      width: '8px',
+      background: '#2a2a2a'
+    },
+    '&::-webkit-scrollbar-thumb': {
+      background: '#4a4a4a',
+      borderRadius: '4px'
+    }
   },
   tankCard: {
     backgroundColor: '#333',
@@ -409,7 +428,8 @@ const styles = {
     borderRadius: '10px',
     borderLeft: '5px solid',
     cursor: 'pointer',
-    transition: 'transform 0.2s'
+    transition: 'transform 0.2s',
+    minHeight: '200px',
   },
   tankHeader: {
     display: 'flex',
@@ -419,9 +439,9 @@ const styles = {
   },
   tankCount: {
     backgroundColor: '#4CAF50',
-    padding: '3px 8px',
+    padding: '5px 10px',
     borderRadius: '12px',
-    fontSize: '12px'
+    fontSize: '14px'
   },
   tankImage: {
     fontSize: '48px',
@@ -433,30 +453,36 @@ const styles = {
   },
   upgradeButton: {
     width: '100%',
-    padding: '8px',
+    padding: '12px',
     marginTop: '10px',
     backgroundColor: '#FFD700',
     color: '#333',
     border: 'none',
     borderRadius: '5px',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    fontSize: '14px',
+    minHeight: '44px',
   },
   battleButton: {
     position: 'fixed',
     bottom: '20px',
     left: '50%',
     transform: 'translateX(-50%)',
-    zIndex: 1000
+    zIndex: 1000,
+    width: '90%',
+    maxWidth: '400px',
   },
   startBattle: {
-    padding: '15px 40px',
-    fontSize: '20px',
+    width: '100%',
+    padding: '15px 20px',
+    fontSize: '18px',
     backgroundColor: '#f44336',
     color: 'white',
     border: 'none',
     borderRadius: '30px',
     cursor: 'pointer',
-    boxShadow: '0 4px 8px rgba(0,0,0,0.3)'
+    boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+    minHeight: '50px',
   },
   noTanks: {
     textAlign: 'center',
